@@ -5,7 +5,7 @@ import threading  # To download chunks in parallel
 
 # Tracker details (assumed to be running on this IP and port)
 TRACKER_IP = "localhost"  # IP address of the tracker
-TRACKER_PORT = 12000  # UDP port for tracker communication
+TRACKER_PORT = 1200  # UDP port for tracker communication
 
 # File chunk size (each chunk is 512 KB)
 CHUNK_SIZE = 512 * 1024  # 512 KB
@@ -34,7 +34,7 @@ def request_seeder_list(file_name):
         udp_socket.settimeout(5)
 
         # Receive response from tracker
-        response, _ = udp_socket.recvfrom(2048)  # Expect a short response
+        response, _ = udp_socket.recvfrom(1024)  # Expect a short response
         seeder_list = response.decode().split(",")  # Convert response to list
         
         return seeder_list if seeder_list[0] else []  # Return list of seeders (if available)
@@ -44,6 +44,83 @@ def request_seeder_list(file_name):
         return []  # No seeders available
     finally:
         udp_socket.close()  # Close the socket
+
+
+def download_chunk(seeder_ip, seeder_port, file_name, chunk_index):
+    """
+    Connects to a seeder via TCP to request and download a specific chunk of the file.
+
+    Steps:
+    1. Creates a TCP connection to the seeder.
+    2. Sends a request message for a specific chunk of the file.
+    3. Receives the chunk and saves it to a file.
+    4. Closes the connection.
+    """
+    try:
+        tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Create TCP socket
+        tcp_socket.connect((seeder_ip, int(seeder_port)))  # Connect to seeder
+
+        # Format request message: "GET file_name chunk_index"
+        request_message = f"GET {file_name} {chunk_index}".encode()
+        tcp_socket.sendall(request_message)  # Send request to seeder
+
+        # Receive chunk data from seeder
+        chunk_data = tcp_socket.recv(CHUNK_SIZE)  # Receive a full chunk (or less)
+
+        # Save chunk to file
+        chunk_path = os.path.join(DOWNLOAD_FOLDER, f"{file_name}.chunk{chunk_index}")
+        with open(chunk_path, "wb") as chunk_file:
+            chunk_file.write(chunk_data)
+
+        print(f"Downloaded chunk {chunk_index} from {seeder_ip}:{seeder_port}")
+
+        tcp_socket.close()  # Close connection after receiving the chunk
+
+    except Exception as e:
+        print(f"Error downloading chunk {chunk_index} from {seeder_ip}: {e}")
+
+
+def merge_chunks(file_name, total_chunks):
+    """
+    Merges all downloaded chunks into a single file.
+
+    Steps:
+    1. Opens a new file for writing the complete data.
+    2. Reads each chunk file and writes its contents into the complete file.
+    3. Deletes chunk files after merging.
+    """
+    complete_file_path = os.path.join(DOWNLOAD_FOLDER, file_name)
+
+    with open(complete_file_path, "wb") as complete_file:
+        for i in range(total_chunks):
+            chunk_path = os.path.join(DOWNLOAD_FOLDER, f"{file_name}.chunk{i}")
+            
+            with open(chunk_path, "rb") as chunk_file: 
+                complete_file.write(chunk_file.read())  # Append chunk data to final file
+            
+            os.remove(chunk_path)  # Remove the chunk file after merging
+
+    print(f"File {file_name} successfully assembled!")
+
+
+def verify_file_integrity(file_name, expected_hash):
+    """
+    Verifies the integrity of the downloaded file by computing its SHA-256 hash.
+    
+    Steps:
+    1. Reads the entire downloaded file.
+    2. Computes its SHA-256 hash.
+    3. Compares the computed hash with the expected hash.
+    """
+    file_path = os.path.join(DOWNLOAD_FOLDER, file_name)
+    sha256 = hashlib.sha256()
+
+    with open(file_path, "rb") as f:
+        while chunk := f.read(4096):  # Read file in 4 KB chunks
+            sha256.update(chunk)  # Update hash with file content
+
+    computed_hash = sha256.hexdigest()  # Get final hash value
+    return computed_hash == expected_hash  # Return True if hash matches
 
 
 def leecher_main(file_name, total_chunks):
