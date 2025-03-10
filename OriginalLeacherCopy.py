@@ -5,10 +5,7 @@ import threading  # To download chunks in parallel
 
 # Tracker details (assumed to be running on this IP and port)
 TRACKER_IP = "localhost"  # IP address of the tracker
-TRACKER_PORT = 12000  # UDP port for tracker communication
-
-Leecher_IP= "192.168.1.1"
-Leecher_Port= 4000
+TRACKER_PORT = 1200  # UDP port for tracker communication
 
 # File chunk size (each chunk is 512 KB)
 CHUNK_SIZE = 512 * 1024  # 512 KB
@@ -37,7 +34,7 @@ def request_seeder_list(file_name):
         udp_socket.settimeout(5)
 
         # Receive response from tracker
-        response, _ = udp_socket.recvfrom(2048)  # Expect a short response
+        response, _ = udp_socket.recvfrom(1024)  # Expect a short response
         seeder_list = response.decode().split(",")  # Convert response to list
         
         return seeder_list if seeder_list[0] else []  # Return list of seeders (if available)
@@ -47,6 +44,8 @@ def request_seeder_list(file_name):
         return []  # No seeders available
     finally:
         udp_socket.close()  # Close the socket
+
+
 def download_chunk(seeder_ip, seeder_port, file_name, chunk_index):
     """
     Connects to a seeder via TCP to request and download a specific chunk of the file.
@@ -104,18 +103,25 @@ def merge_chunks(file_name, total_chunks):
     print(f"File {file_name} successfully assembled!")
 
 
-#Converting to a Seeder after recienving he chunks of data.
-
-def notify_tracker_of_seeding(tracker_ip, tracker_port, leecher_ip, leecher_port,file_name):
+def verify_file_integrity(file_name, expected_hash):
     """
-    Notify the tracker that this leecher is now a seeder and is available to provide file chunks.
+    Verifies the integrity of the downloaded file by computing its SHA-256 hash.
+    
+    Steps:
+    1. Reads the entire downloaded file.
+    2. Computes its SHA-256 hash.
+    3. Compares the computed hash with the expected hash.
     """
-    message = f"SEEDER {file_name} {leecher_ip}:{leecher_port}"
-    tracker_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    tracker_socket.sendto(message.encode(), (tracker_ip, tracker_port))
-    tracker_socket.close()
+    file_path = os.path.join(DOWNLOAD_FOLDER, file_name)
+    sha256 = hashlib.sha256()
 
-    print(f"Leecher {Leecher_IP} has be converted to a Seeder...")
+    with open(file_path, "rb") as f:
+        while chunk := f.read(4096):  # Read file in 4 KB chunks
+            sha256.update(chunk)  # Update hash with file content
+
+    computed_hash = sha256.hexdigest()  # Get final hash value
+    return computed_hash == expected_hash  # Return True if hash matches
+
 
 def leecher_main(file_name, total_chunks):
     """
@@ -136,7 +142,30 @@ def leecher_main(file_name, total_chunks):
 
     print(f"Found seeders: {seeder_list}")
 
-    notify_tracker_of_seeding(Leecher_IP, Leecher_Port, TRACKER_IP, TRACKER_PORT,file_name)
+    # Step 2: Download chunks from multiple seeders (parallel downloads)
+    threads = []
+    for i in range(total_chunks):
+        seeder_info = seeder_list[i % len(seeder_list)].split(":")  # Round-robin seeder selection
+        seeder_ip, seeder_port = seeder_info[0], seeder_info[1]
+
+        # Create a thread to download a chunk from a specific seeder
+        thread = threading.Thread(target=download_chunk, args=(seeder_ip, seeder_port, file_name, i))
+        threads.append(thread)
+        thread.start()
+
+    # Wait for all chunks to be downloaded before proceeding
+    for thread in threads:
+        thread.join()
+
+    # Step 3: Merge chunks into a single file
+    merge_chunks(file_name, total_chunks)
+
+    # Step 4: Verify file integrity (optional)
+    expected_hash = "expected_sha256_hash_here"  # Replace with actual hash from the tracker
+    if verify_file_integrity(file_name, expected_hash):
+        print("File integrity verified. Download successful!")
+    else:
+        print("File integrity check failed. The file may be corrupted.")
 
 
 # Example usage
