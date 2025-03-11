@@ -110,12 +110,12 @@ def notify_tracker_of_seeding(tracker_ip, tracker_port, leecher_ip, leecher_port
     """
     Notify the tracker that this leecher is now a seeder and is available to provide file chunks.
     """
-    message = f"SEEDER {file_name} {leecher_ip}:{leecher_port}"
+    message = f"REGISTER {file_name} {leecher_ip}:{leecher_port}"
     tracker_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     tracker_socket.sendto(message.encode(), (tracker_ip, tracker_port))
     tracker_socket.close()
 
-    print(f"Leecher {Leecher_IP} has be converted to a Seeder...")
+    print(f"Leecher {Leecher_IP} has be converted to a Seeder sharing fiel: {file_name}...")
 
 def leecher_main(file_name, total_chunks):
     """
