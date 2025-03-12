@@ -74,7 +74,7 @@ class Seeder:
     def Attend_clients(self, client_socket, client_address) :
           try:
                 while True:
-                      #receive and print client messages
+                      #receive and print client message
                       request = client_socket.recv(1024).decode("utf-8")
                       # if request is empty or client requests to close connection
                       #then seeder responds with closed and connection breaks
@@ -151,20 +151,4 @@ if __name__ == "__main__":
            )
 
            seeder.run()
-
-       
-
-          
-          
-
-         
-
-                
-
-
-          
-          
-          
-                
-          
-            
+   
