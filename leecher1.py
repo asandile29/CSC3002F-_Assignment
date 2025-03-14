@@ -1,128 +1,76 @@
 import socket
 import os
 
-# Trackers' address (Assuming it runs locally)
-TRACKER_HOST = "127.0.0.1"
-TRACKER_UDP_PORT = 1111  # The tracker listens for peer discovery on this port
+# Tracker details
+TRACKER_IP = "127.0.0.1"
+TRACKER_PORT = 12345
 
-# The directory where downloaded chunks are stored
-DOWNLOADS_DIR = "downloads"
+# Leecher's download directory
+DOWNLOAD_FOLDER = "downloads"
+os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)  # Create folder if it doesn't exist
 
-# Function to request available seeders from the tracker
-def request_seeders():
-    """
-    Contacts the tracker to get a list of seeders.
-    Returns a list of seeder addresses or None if no seeders are found.
-    """
-    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Create a UDP socket
-    udp_socket.sendto(b"REQUEST_PEERS", (TRACKER_HOST, TRACKER_UDP_PORT))  # Send request
-    
-    # Receive response from the tracker
-    response, _ = udp_socket.recvfrom(2048)  
-    seeders = response.decode().split(", ")  # Convert response to a list
-    
-    udp_socket.close()
-    
-    if seeders:
-        print(f"Available seeders: {seeders}")
-        return seeders
-    else:
-        print("No seeders found.")
-        return None
+def request_file(file_name):
+    """Sends a request to the tracker for a specific file and retrieves the list of seeders."""
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.sendto(f"Request {file_name}".encode(), (TRACKER_IP, TRACKER_PORT))
+        response, _ = sock.recvfrom(1024)  # Receive the list of seeders
 
-# Function to download file chunks from a seeder
-def download_from_seeder(seeder_ip, seeder_port, filename):
-    """
-    Connects to a seeder and downloads the file in chunks.
-    Saves chunks to the downloads directory.
-    """
-    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Create a TCP socket
+        if not response:
+            print(f"No seeders found for '{file_name}'.")
+            return None
+
+        seeder_list = response.decode().split(",")  # Convert seeder list to usable format
+        print(f"Available seeders for '{file_name}': {seeder_list}")
+        return seeder_list
+
+def download_from_seeder(seeder_ip, seeder_port, file_name):
+    """Connects to a seeder and downloads the file in chunks."""
+    seeder_address = (seeder_ip, int(seeder_port))
     
-    try:
-        print(f"Connecting to seeder at {seeder_ip}:{seeder_port}...")
-        tcp_socket.connect((seeder_ip, seeder_port))  # Connect to seeder
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.sendto(f"Download {file_name}".encode(), seeder_address)
         
-        tcp_socket.send(filename.encode())  # Request file from seeder
-
-        os.makedirs(DOWNLOADS_DIR, exist_ok=True)  # Ensure download directory exists
-
-        chunk_index = 0
+        chunk_number = 0
         while True:
-            chunk_data = tcp_socket.recv(2048)  # Receive a chunk
+            chunk, _ = sock.recvfrom(4096)  # Receive file chunk
             
-            if not chunk_data:  # If no more data, break loop
-                break
+            if chunk == b"END":  
+                print("Download complete!")
+                break  # Stop when all chunks are received
+            
+            chunk_path = os.path.join(DOWNLOAD_FOLDER, f"{file_name}.chunk{chunk_number}")
+            with open(chunk_path, "wb") as f:
+                f.write(chunk)
 
-            chunk_path = os.path.join(DOWNLOADS_DIR, f"{filename}.chunk{chunk_index}")
-            with open(chunk_path, "wb") as chunk_file:
-                chunk_file.write(chunk_data)  # Save chunk to file
-                
-            print(f"Downloaded chunk {chunk_index}")
-            chunk_index += 1
+            print(f"Received chunk {chunk_number}")
+            chunk_number += 1
+        
+    merge_chunks(file_name)
 
-        print("Download completed. Merging chunks...")
-
-    except Exception as e:
-        print(f"Error while downloading: {e}")
-    finally:
-        tcp_socket.close()  # Close connection
-
-# Function to merge file chunks into a single file
-def merge_chunks(filename):
-    """
-    Merges all the downloaded chunks into the final file.
-    """
-    final_file_path = os.path.join(DOWNLOADS_DIR, filename)
-
-    with open(final_file_path, "wb") as final_file:
-        chunk_index = 0
+def merge_chunks(file_name):
+    """Reassembles the downloaded chunks into a complete file."""
+    with open(os.path.join(DOWNLOAD_FOLDER, file_name), "wb") as final_file:
+        chunk_number = 0
         while True:
-            chunk_path = os.path.join(DOWNLOADS_DIR, f"{filename}.chunk{chunk_index}")
+            chunk_path = os.path.join(DOWNLOAD_FOLDER, f"{file_name}.chunk{chunk_number}")
             if not os.path.exists(chunk_path):
-                break  # Stop if no more chunks
-            
+                break  # Stop when no more chunks are found
+
             with open(chunk_path, "rb") as chunk_file:
-                final_file.write(chunk_file.read())  # Append chunk data to final file
-            
-            os.remove(chunk_path)  # Remove chunk after merging
-            chunk_index += 1
+                final_file.write(chunk_file.read())
 
-    print(f"File {filename} reconstructed successfully!")
+            os.remove(chunk_path)  # Cleanup chunk files
+            chunk_number += 1
 
-# Function to transform leecher into seeder
-def become_seeder(filename):
-    """
-    After downloading a file, the leecher can act as a seeder.
-    It opens a TCP socket to serve the file to other leechers.
-    """
-    SEEDER_PORT = 5000  # Port for seeding files
-    seeder_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    seeder_socket.bind(("0.0.0.0", SEEDER_PORT))  # Bind to all interfaces
-    seeder_socket.listen(5)
+    print(f"File '{file_name}' successfully assembled!")
 
-    print(f"Now seeding '{filename}' on port {SEEDER_PORT}...")
-
-    while True:
-        client_socket, client_address = seeder_socket.accept()
-        print(f"Serving file to {client_address}")
-
-        with open(os.path.join(DOWNLOADS_DIR, filename), "rb") as file:
-            while chunk := file.read(2048):  # Read and send file in chunks
-                client_socket.send(chunk)
-
-        client_socket.close()
-
-# Main execution
 if __name__ == "__main__":
-    
-    filename = input('Please enter the file name you want to download:')  # The file we want to download
-
-    seeders = request_seeders()  # Get list of available seeders
+    file_name = input("Enter the file you want to download: ")
+    seeders = request_file(file_name)
 
     if seeders:
-        seeder_ip = seeders[0].split(":")[0]  # Extract seeder IP from tracker response
-        seeder_port = 5000  # Assuming all seeders use port 5000
-
-        download_from_seeder(seeder_ip, seeder_port, filename)  # Download the file
-        merge_chunks(filename)  # Reconstruct the file
-        become_seeder(filename)  # Start seeding the file for others
+        for seeder in seeders:
+            ip, port = seeder.split(":")
+            print(f"Attempting to download from {ip}:{port}...")
+            download_from_seeder(ip, port, file_name)
+            break  # Stop after first successful download

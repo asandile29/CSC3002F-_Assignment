@@ -1,70 +1,60 @@
-import socket  # For networking (UDP communication)
-import threading  # To handle multiple clients simultaneously
+import socket
+import threading
 
-# Tracker configuration
-TRACKER_IP = "localhost"  # Listen on all available network interfaces
-TRACKER_PORT = 12000  # Port for UDP communication
+# Dictionary to store registered seeders (Format: {file_name: [(ip, port), (ip, port), ...]})
+peers = {}
+peers_lock = threading.Lock()  # Prevent race conditions
 
-# Dictionary to store file availability
-# Format: {"file_name": ["seeder1_ip:seeder1_port", "seeder2_ip:seeder2_port"]}
-file_registry = {'example_file.txt':["0.0.0.0:5000"] }
+# Tracker listens on this port for both seeders and leechers
+tracker_port = 12345
+tracker_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+tracker_socket.bind(('127.0.0.1', tracker_port))
 
-#Method to add the seeder list
+print(f"Tracker running on port {tracker_port}...")
 
-
-def handle_client(data, client_address, udp_socket):
-    """
-    Handles incoming requests from leechers or seeders.
-
-    - If the request is from a **leecher**, it returns a list of seeders for the requested file.
-    - If the request is from a **seeder**, it registers the file availability in `file_registry`.
-    """
-    message = data.decode().strip()  # Decode incoming message
-
-    # If the message starts with "REQUEST", it's from a leecher requesting seeders
-    if message.startswith("REQUEST"):
-        _, file_name = message.split(" ", 1)  # Extract the requested file name
-
-        if file_name in file_registry:
-            # Send the list of available seeders to the leecher
-            seeder_list = ",".join(file_registry[file_name])  # Convert list to comma-separated string
-            udp_socket.sendto(seeder_list.encode(), client_address)  # Send data back to leecher
-            print(f"Sent seeders {seeder_list} for file '{file_name}' to {client_address}")
-        else:
-            # No seeders available for the requested file
-            udp_socket.sendto(b"", client_address)  # Send an empty response
-            print(f"No seeders available for '{file_name}' requested by {client_address}")
-
-    # If the message starts with "REGISTER", it's from a seeder sharing a file
-    elif message.startswith("REGISTER"):
-        _, file_name, seeder_ip, seeder_port = message.split(" ")  # Extract file name & seeder details
-        seeder_info = f"{seeder_ip}:{seeder_port}"  # Format seeder info as "IP:PORT"
-
-        # Add the seeder to the registry for this file
-        if file_name in file_registry:
-            if seeder_info not in file_registry[file_name]:
-                file_registry[file_name].append(seeder_info)
-        else:
-            file_registry[file_name] = [seeder_info]
-
-        print(f"Registered seeder {seeder_info} for file '{file_name}'")
-
-def start_tracker():
-    """
-    Starts the UDP tracker server to listen for connections from leechers and seeders.
-    """
-    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Create a UDP socket
-    udp_socket.bind((TRACKER_IP, TRACKER_PORT))  # Bind socket to tracker IP & port
-
-    print(f"Tracker is running on {TRACKER_IP}:{TRACKER_PORT}")
-
+def handle_requests():
+    """Handles both seeder registration and leecher requests."""
     while True:
-        data, client_address = udp_socket.recvfrom(2048)  # Receive data from any client
+        try:
+            message, address = tracker_socket.recvfrom(1024)
+            message = message.decode()
+            print(f"Message from {address}: {message}")
 
-        # Create a new thread to handle each request
-        client_thread = threading.Thread(target=handle_client, args=(data, client_address, udp_socket))
-        client_thread.start()
+            if message.startswith("Register"):
+                # Seeder registers a file
+                file_name = message.split(" ")[1]
 
-# Run the tracker
+                with peers_lock:
+                    if file_name in peers:
+                        if address not in peers[file_name]:
+                            peers[file_name].append(address)
+                    else:
+                        peers[file_name] = [address]
+
+                print(f"Seeder {address} registered for file '{file_name}'.")
+
+            elif message.startswith("Request"):
+                # Leecher requests a file
+                file_name = message.split(" ")[1]
+
+                with peers_lock:
+                    if file_name in peers and peers[file_name]:
+                        seeder_list = ",".join(f"{ip}:{port}" for ip, port in peers[file_name])
+                        tracker_socket.sendto(seeder_list.encode(), address)
+                        print(f"Sent seeders '{seeder_list}' to {address}.")
+                    else:
+                        tracker_socket.sendto(b"", address)
+                        print(f"No seeders found for '{file_name}'.")
+
+        except Exception as e:
+            print(f"Error: {e}")
+
 if __name__ == "__main__":
-    start_tracker()
+    try:
+        threading.Thread(target=handle_requests, daemon=True).start()
+        while True:
+            pass  # Keep tracker running
+    except KeyboardInterrupt:
+        print("\nTracker shutting down...")
+    finally:
+        tracker_socket.close()
