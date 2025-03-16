@@ -46,7 +46,7 @@ def handleRequests(trackerSocket):
         
            
             #seeders
-            elif (message.decode().startswith('Register')):
+            elif (message.decode().startswith('REGISTER')):
                 with peersLock:
                     if fileName in peers:
                         if address not in peers[fileName]:
@@ -55,10 +55,10 @@ def handleRequests(trackerSocket):
                         peers[fileName] = [address]
                 print(f"Registered seeder {address} for file '{fileName}'")
 
-                try:
+                """ try:
                     #send a ping to peers
                     trackerSocket.sendto(b'Hello', address)
-                    trackerSocket.settimeout(5)
+                    trackerSocket.settimeout(60)
                     reply, _ = trackerSocket.recvfrom(1024)
 
                     #check if peer is active
@@ -74,7 +74,8 @@ def handleRequests(trackerSocket):
                     print("Peer ", address," did not respond. The peer has been removed")
                     removePeer(fileName, address)
                 finally:
-                        trackerSocket.settimeout(None) #reset timeout for next peer
+                        trackerSocket.settimeout(None) #reset timeout for next peer"
+                        """
         except Exception as e:
             print(f"Error handling connection: {e}")
             break
@@ -87,12 +88,33 @@ def removePeer(fileName, address):
             if not peers[fileName]:
                 del peers[fileName]
                 print(f"No more peers available for file '{fileName}'")
+
+def periodicPeerCheck():
+    while True:
+        time.sleep(60)  # Check every 60 seconds
+        with peersLock:
+            for fileName, addresses in list(peers.items()):
+                for address in list(addresses):
+                    try:
+                        trackerSocket.sendto(b'Hello', address)
+                        trackerSocket.settimeout(5)
+                        reply, _ = trackerSocket.recvfrom(1024)
+                        if reply != b'ALIVE':
+                            removePeer(fileName, address)
+                    except socket.timeout:
+                        removePeer(fileName, address)
+                    finally:
+                        trackerSocket.settimeout(None)
     
 
 
 if __name__ == "__main__":
     try:
         thread1 = threading.Thread(target=handleRequests, args=(trackerSocket,))
+        thread1.start()
+
+        #thread2 = threading.Thread(target=periodicPeerCheck)
+        #thread2.start()
         while True:
             pass
      
