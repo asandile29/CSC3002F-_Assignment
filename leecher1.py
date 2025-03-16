@@ -3,7 +3,7 @@ import os
 
 # Tracker details
 TRACKER_IP = "127.0.0.1"
-TRACKER_PORT = 12345
+TRACKER_PORT = 1111
 
 # Leecher's download directory
 DOWNLOAD_FOLDER = "downloads"

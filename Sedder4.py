@@ -1,13 +1,3 @@
-#Responsibilities:
-    #Divide the file into chunks: The file is split into fixed-size parts (e.g., 512 KB).
-    #Register with the tracker: The seeder informs the tracker that it is available and 
-    #specifies which file it has.
-    # Respond to leecher requests: When a leecher requests a chunk, the seeder 
-    #transfers it using TCP.
-    # Use TCP for reliable data transfer: Since TCP ensures the correct order of data 
-    #and retransmits lost packets, it is used for file transfer.
-    # Periodically notify the tracker of its availability: This helps leechers find available 
-    #sources.
 import socket
 import threading
 import time
@@ -15,17 +5,10 @@ import os
 
 # Corrected variable assignments
 tracker_IP = "127.0.0.1"
-<<<<<<< HEAD
-tracker_port = 1111
-seeder_IP = "128.0.0.1"
-seeder_port = 7000
-Checkin_Interval = 5
-=======
 tracker_port = 12345
 seeder_IP = "127.0.0.1"
-seeder_port = 7000
+seeder_port = 7004
 Checkin_Interval = 30
->>>>>>> 3edbaad2c305cf1aa75d6ee14de71a9a987e46f5
 
 class Seeder:
     def __init__(self, file_name: str, tracker_IP: str, tracker_port: int, 
@@ -128,15 +111,3 @@ if __name__ == "__main__":
     )
     
     seeder.run()
-
-         
-
-                
-
-
-          
-          
-          
-                
-          
-            
