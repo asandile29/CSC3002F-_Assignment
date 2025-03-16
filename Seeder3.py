@@ -5,7 +5,7 @@ import os
 
 # Corrected variable assignments
 tracker_IP = "127.0.0.1"
-tracker_port = 12345
+tracker_port = 1111
 seeder_IP = "127.0.0.1"
 seeder_port = 7003
 Checkin_Interval = 30
@@ -23,6 +23,7 @@ class Seeder:
 
     def inform_Tracker(self):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as UDP_sock:  # Create a UDP socket
+            UDP_sock.bind(("127.0.0.1", self.seeder_port))
             message = f"REGISTER {self.file_name} {self.seeder_IP} {self.seeder_port}"
             UDP_sock.sendto(message.encode(), (self.tracker_IP, self.tracker_port))  # Send to tracker
             print(f"Registered with the tracker for the file: {self.file_name}")
@@ -69,6 +70,7 @@ class Seeder:
             print(f"Connection to client {client_address} closed!")
 
     def Send_files(self, file_name, client_socket):
+        client_socket.setblocking(False)
         try:
             with open(file_name, "rb") as file:
                 while True:

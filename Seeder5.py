@@ -5,7 +5,7 @@ import os
 
 # Corrected variable assignments
 tracker_IP = "127.0.0.1"
-tracker_port = 12345
+tracker_port = 1111
 seeder_IP = "127.0.0.1"
 seeder_port = 7005
 Checkin_Interval = 30

@@ -1,7 +1,7 @@
 import socket
 
 TRACKER_IP = '127.0.0.1'  # Trackers IP
-TRACKER_PORT = 12345      # Same port as the tracker
+TRACKER_PORT = 1111     # Same port as the tracker
 
 def request_seeder_list(file_name):
     """Request seeders from the tracker."""
@@ -27,6 +27,8 @@ def download_file(seeder_ip, seeder_port, file_name):
 
         # Request file from the seeder
         seeder_socket.sendall(file_name.encode())
+        message, address = seeder_socket.recvfrom(1024)
+        print(message.decode())
 
         with open(f"downloaded_{file_name}", "wb") as file:
             while True:
