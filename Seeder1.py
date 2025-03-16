@@ -15,10 +15,17 @@ import os
 
 # Corrected variable assignments
 tracker_IP = "127.0.0.1"
+<<<<<<< HEAD
 tracker_port = 1111
 seeder_IP = "128.0.0.1"
 seeder_port = 7000
 Checkin_Interval = 5
+=======
+tracker_port = 12345
+seeder_IP = "127.0.0.1"
+seeder_port = 7000
+Checkin_Interval = 30
+>>>>>>> 3edbaad2c305cf1aa75d6ee14de71a9a987e46f5
 
 class Seeder:
     def __init__(self, file_name: str, tracker_IP: str, tracker_port: int, 
