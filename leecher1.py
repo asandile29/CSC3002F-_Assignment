@@ -2,8 +2,8 @@ import socket
 import os
 
 # Tracker details
-TRACKER_IP = "127.0.0.1"
-TRACKER_PORT = 1111
+tracker_ip = "127.0.0.1"
+tracker_port = 1111
 
 # Leecher's download directory
 DOWNLOAD_FOLDER = "downloads"
@@ -12,7 +12,7 @@ os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)  # Create folder if it doesn't exist
 def request_file(file_name):
     """Sends a request to the tracker for a specific file and retrieves the list of seeders."""
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-        sock.sendto(f"Request {file_name}".encode(), (TRACKER_IP, TRACKER_PORT))
+        sock.sendto(f"Request {file_name}".encode(), (tracker_ip, tracker_port))
         response, _ = sock.recvfrom(1024)  # Receive the list of seeders
 
         if not response:

@@ -4,18 +4,18 @@ import time
 import os
 
 # Corrected variable assignments
-tracker_IP = "127.0.0.1"
+tracker_ip = "127.0.0.1"
 tracker_port = 12345
 seeder_IP = "127.0.0.1"
 seeder_port = 7004
 Checkin_Interval = 30
 
 class Seeder:
-    def __init__(self, file_name: str, tracker_IP: str, tracker_port: int, 
+    def __init__(self, file_name: str, tracker_ip: str, tracker_port: int, 
                  seeder_IP: str, seeder_port: int, Checkin_Interval: int):
         self.file_name = file_name
         self.chunks = {}
-        self.tracker_IP = tracker_IP
+        self.tracker_ip = tracker_ip
         self.tracker_port = tracker_port
         self.seeder_IP = seeder_IP
         self.seeder_port = seeder_port
@@ -24,7 +24,7 @@ class Seeder:
     def inform_Tracker(self):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as UDP_sock:  # Create a UDP socket
             message = f"REGISTER {self.file_name} {self.seeder_IP} {self.seeder_port}"
-            UDP_sock.sendto(message.encode(), (self.tracker_IP, self.tracker_port))  # Send to tracker
+            UDP_sock.sendto(message.encode(), (self.tracker_ip, self.tracker_port))  # Send to tracker
             print(f"Registered with the tracker for the file: {self.file_name}")
 
     def start_Server(self):
@@ -87,7 +87,7 @@ class Seeder:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as UDP_sock:
             while True:
                 message = f"ALIVE {self.file_name} {self.seeder_port}"
-                UDP_sock.sendto(message.encode(), (self.tracker_IP, self.tracker_port))
+                UDP_sock.sendto(message.encode(), (self.tracker_ip, self.tracker_port))
                 print(f"Check-in sent!")
                 time.sleep(self.Checkin_Interval)
 
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     # Correct instantiation with required parameters
     seeder = Seeder(
         file_name="example.txt",
-        tracker_IP=tracker_IP,
+        tracker_ip=tracker_ip,
         tracker_port=tracker_port,
         seeder_IP=seeder_IP,
         seeder_port=seeder_port,

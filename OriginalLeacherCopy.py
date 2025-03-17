@@ -4,8 +4,8 @@ import os  # For handling file storage
 import threading  # To download chunks in parallel
 
 # Tracker details (assumed to be running on this IP and port)
-TRACKER_IP = "localhost"  # IP address of the tracker
-TRACKER_PORT = 1200  # UDP port for tracker communication
+tracker_ip = "localhost"  # IP address of the tracker
+tracker_port = 1200  # UDP port for tracker communication
 
 # File chunk size (each chunk is 512 KB)
 CHUNK_SIZE = 512 * 1024  # 512 KB
@@ -28,7 +28,7 @@ def request_seeder_list(file_name):
 
     try:
         message = f"REQUEST {file_name}".encode()  # Format request message
-        udp_socket.sendto(message, (TRACKER_IP, TRACKER_PORT))  # Send request to tracker
+        udp_socket.sendto(message, (tracker_ip, tracker_port))  # Send request to tracker
 
         # Set a timeout in case the tracker is unresponsive
         udp_socket.settimeout(5)

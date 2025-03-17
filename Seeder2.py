@@ -4,7 +4,7 @@ import time
 import os
 
 # Corrected variable assignments
-tracker_IP = "127.0.0.1"
+tracker_ip = "127.0.0.1"
 tracker_port = 1111
 seeder_IP = "127.0.0.1"
 seeder_port = 7002
@@ -13,11 +13,11 @@ seeder_portUDP = 7003
 
 
 class Seeder:
-    def __init__(self, file_name: str, tracker_IP: str, tracker_port: int, 
+    def __init__(self, file_name: str, tracker_ip: str, tracker_port: int, 
                  seeder_IP: str, seeder_port: int, Checkin_Interval: int, seeder_portUDP: int):
         self.file_name = file_name
         self.chunks = {}
-        self.tracker_IP = tracker_IP
+        self.tracker_ip = tracker_ip
         self.tracker_port = tracker_port
         self.seeder_IP = seeder_IP
         self.seeder_port = seeder_port
@@ -29,8 +29,9 @@ class Seeder:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as UDP_sock:  # Create a UDP socket
             UDP_sock.bind(("127.0.0.1", self.seeder_port))
             message = f"REGISTER {self.file_name} {self.seeder_IP} {self.seeder_portUDP}"
-            UDP_sock.sendto(message.encode(), (self.tracker_IP, self.tracker_port))  # Send to tracker
+            UDP_sock.sendto(message.encode(), (self.tracker_ip, self.tracker_port))  # Send to tracker
             print(f"Registered with the tracker for the file: {self.file_name}")
+            
 
     def start_Server(self):
         try:
@@ -74,7 +75,25 @@ class Seeder:
             print(f"Connection to client {client_address} closed!")
 
     def Send_files(self, file_name, client_socket):
-        client_socket.setblocking(False)
+        try:
+            with open(file_name, "r", encoding="utf-8") as file:  # Open as a text file
+                for line in file:
+                    print(f"Sent: {line.strip()}")
+                    client_socket.send(line.encode())  # Encode and send each line
+            
+            #client_socket.send(b"EOF")  # Send EOF marker to signal end of file
+            print("File transfer complete!")
+
+        except FileNotFoundError:
+            error_message = "Error: File not found!"
+            client_socket.send(error_message.encode())
+            print(f"File {file_name} not found!")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+
+    """def Send_files(self, file_name, client_socket):
+        #client_socket.setblocking(False)
+        print("sending files")
         try:
             with open(file_name, "rb") as file:
                 while True:
@@ -92,12 +111,12 @@ class Seeder:
             error_message = f"Error: {str(e)}"
             client_socket.send(error_message.encode())
             print(f"Error during transfer: {e}")
-
+"""
    # def periodic_CheckIn(self):
     #    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as UDP_sock:
      #       while True:
       #          message = f"ALIVE {self.file_name} {self.seeder_port}"
-       #         UDP_sock.sendto(message.encode(), (self.tracker_IP, self.tracker_port))
+       #         UDP_sock.sendto(message.encode(), (self.tracker_ip, self.tracker_port))
         #        print(f"Check-in sent!")
          #       time.sleep(self.Checkin_Interval)
     def trackerCheckIn(self):
@@ -127,7 +146,7 @@ if __name__ == "__main__":
     # Correct instantiation with required parameters
     seeder = Seeder(
         file_name="example.txt",
-        tracker_IP=tracker_IP,
+        tracker_ip=tracker_ip,
         tracker_port=tracker_port,
         seeder_IP=seeder_IP,
         seeder_port=seeder_port,

@@ -8,8 +8,8 @@ import socket
 import os
 
 #The tracker Details
-Tracker_IP = "127.0.0.1"
-Tracker_Port_number = 12345
+tracker_ip = "127.0.0.1"
+tracker_port_number = 12345
 
 #The leecher Details.
 Leecher_IP = "127.0.0.1"
@@ -28,10 +28,10 @@ os.makedirs(File_Downloads_Folder,exist_ok=True)
 def Request_Seeder_List(file_name):
  #Connecting to the tracker with UDP
  Tracker_Socket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
- print(f"Connecting to Tracker with Port Number: {Tracker_Port_number} and a IP Address: {Tracker_IP} ")
+ print(f"Connecting to Tracker with Port Number: {tracker_port_number} and a IP Address: {tracker_ip} ")
 
  #Sending the message to the Tracker.
- Tracker_Socket.sendto(f"Reguest {file_name}".encode(),(Tracker_IP,Tracker_Port_number))
+ Tracker_Socket.sendto(f"Reguest {file_name}".encode(),(tracker_ip,tracker_port_number))
  Response,_= Tracker_Socket.recvfrom(1024)
  print("Fatching the responce....")
 

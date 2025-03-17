@@ -89,32 +89,15 @@ def removePeer(fileName, address):
                 del peers[fileName]
                 print(f"No more peers available for file '{fileName}'")
 
-def periodicPeerCheck():
-    while True:
-        time.sleep(60)  # Check every 60 seconds
-        with peersLock:
-            for fileName, addresses in list(peers.items()):
-                for address in list(addresses):
-                    try:
-                        trackerSocket.sendto(b'Hello', address)
-                        trackerSocket.settimeout(5)
-                        reply, _ = trackerSocket.recvfrom(1024)
-                        if reply != b'ALIVE':
-                            removePeer(fileName, address)
-                    except socket.timeout:
-                        removePeer(fileName, address)
-                    finally:
-                        trackerSocket.settimeout(None)
-    
+
 
 
 if __name__ == "__main__":
     try:
         thread1 = threading.Thread(target=handleRequests, args=(trackerSocket,))
-        thread1.start()
 
-        #thread2 = threading.Thread(target=periodicPeerCheck)
-        #thread2.start()
+        thread1.start()
+       
         while True:
             pass
      
